@@ -1,7 +1,29 @@
 # -*- coding: utf-8 -*-
 
+from functools import wraps
 import json
 import os
+from warnings import warn
+
+
+def check_is_hashable():
+    def decorator(func):
+        @wraps(func)
+        def inner(self, *args):
+            should_warn = False
+            for item in args:
+                # TODO add list support, maybe
+                if not getattr(item, "__hash__", None):
+                    should_warn = True
+                    break
+            if should_warn:
+                warn("Not hashable key or value")
+                return False
+            return func(self, *args)
+
+        return inner
+
+    return decorator
 
 
 class SimpleDB:
@@ -30,14 +52,24 @@ class SimpleDB:
         self.db = {}
         self.dump_to_file()
 
-    def get(self):
-        pass
+    @check_is_hashable()
+    def get(self, key):
+        return self.db.get(key, None)
 
-    def set(self):
-        pass
+    @check_is_hashable()
+    def set(self, key, value):
+        self.db[key] = value
+        return True
 
-    def delete(self):
-        pass
+    @check_is_hashable()
+    def delete(self, key):
+        self.db.pop(key)
+        return True
 
-    def pop(self):
-        pass
+    @check_is_hashable()
+    def pop(self, key):
+        return self.db.pop(key, None)
+
+    @check_is_hashable()
+    def has(self, key):
+        return key in self.db
